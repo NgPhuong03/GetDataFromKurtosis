@@ -1,0 +1,8 @@
+mongo: 
+  mongoURI: "mongodb+srv://phuongngusee_db_user:acnKHO5w9cXtCzGq@blockchain.03qpidb.mongodb.net/"
+  dbName: "kurtosis"
+
+dora:
+  url: http://127.0.0.1:32791
+
+time_loop: 10
