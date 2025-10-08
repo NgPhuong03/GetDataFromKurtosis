@@ -3,6 +3,6 @@ mongo:
   dbName: "kurtosis"
 
 dora:
-  url: http://127.0.0.1:32791
+  url: http://127.0.0.1:32778
 
 time_loop: 10

@@ -26,14 +26,11 @@ func (s *EpochService) Start() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	client, err := connectMongo(ctx)
+  client, err := getMongoClient(ctx)
 	if err != nil {
 		log.Fatalf("failed to connect mongo: %v", err)
 	}
 	log.Println("Connected to mongo")
-	defer func() {
-		_ = client.Disconnect(context.Background())
-	}()
 
 	coll := client.Database(s.config.Mongo.DBName).Collection(s.collName)
 
@@ -94,11 +91,11 @@ func (s *EpochService) Start() {
 				MissedBlocks:       toInt(e["missed_blocks"]),
 				OrphanedBlocks:     toInt(e["orphaned_blocks"]),
 			}
-			insertedID, err := saveDocument(ctx, coll, epoch)
+			_, err := saveDocument(ctx, coll, epoch)
 			if err != nil {
 				log.Fatalf("failed to save document: %v", err)
 			}
-			log.Printf("saved document with _id=%v to %s.%s", insertedID, s.config.Mongo.DBName, s.collName)
+			// log.Printf("saved document with _id=%v to %s.%s", insertedID, s.config.Mongo.DBName, s.collName)
 			arrCount[2]++
 		} else if err != nil {
 			log.Fatalf("failed to find epoch: %v", err)
@@ -135,7 +132,7 @@ func (s *EpochService) Start() {
 			if err != nil {
 				log.Fatalf("failed to update document: %v", err)
 			}
-			log.Printf("updated document with _id=%v to %s.%s", existing.Epoch, s.config.Mongo.DBName, s.collName)
+			// log.Printf("updated document with _id=%v to %s.%s", existing.Epoch, s.config.Mongo.DBName, s.collName)
 			arrCount[1]++
 		}
 	}

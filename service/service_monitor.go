@@ -26,14 +26,10 @@ func (s *ServiceMonitorService) Start() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	client, err := connectMongo(ctx)
+	client, err := getMongoClient(ctx)
 	if err != nil {
 		log.Fatalf("failed to connect mongo: %v", err)
 	}
-	log.Println("Connected to mongo")
-	defer func() {
-		_ = client.Disconnect(context.Background())
-	}()
 
 	coll := client.Database(s.config.Mongo.DBName).Collection(s.collName)
 
@@ -45,7 +41,7 @@ func (s *ServiceMonitorService) Start() {
 
 	var wg sync.WaitGroup
 	runningCount := 0
-	maxGoroutines := 3
+	maxGoroutines := 4
 
 	for _, svc := range services {
 		if svc.IsRunning {
@@ -93,6 +89,19 @@ func (s *ServiceMonitorService) Start() {
 				if err != nil {
 					log.Fatalf("failed to update service: %v", err)
 				}
+			case "slots":
+				slotsService := NewSlotService(s.config)
+				service.IsRunning = true
+				_, err := coll.UpdateOne(ctx, bson.M{"name": service.Name}, bson.M{"$set": bson.M{"is_running": true}})
+				if err != nil {
+					log.Fatalf("failed to update service: %v", err)
+				}
+				slotsService.Start()
+				service.IsRunning = false
+				_, err = coll.UpdateOne(ctx, bson.M{"name": service.Name}, bson.M{"$set": bson.M{"is_running": false}})
+				if err != nil {
+					log.Fatalf("failed to update service: %v", err)
+				}
 			default:
 				log.Printf("Unknown service type: %s", service.Name)
 			}
@@ -122,4 +131,21 @@ func getAllServices(ctx context.Context, coll *mongo.Collection) ([]model.Servic
 		services = append(services, service)
 	}
 	return services, nil
+}
+
+func (s *ServiceMonitorService) SetAllFalse() {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	client, err := getMongoClient(ctx)
+	if err != nil {
+		log.Fatalf("failed to connect mongo: %v", err)
+	}
+
+	coll := client.Database(s.config.Mongo.DBName).Collection(s.collName)
+	_, err = coll.UpdateMany(ctx, bson.M{}, bson.M{"$set": bson.M{"is_running": false}})
+	if err != nil {
+		log.Fatalf("failed to update services: %v", err)
+	}
+	log.Println("All services set to false")
 }

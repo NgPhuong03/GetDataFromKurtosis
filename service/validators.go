@@ -28,14 +28,11 @@ func (s *ValidatorsService) Start() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	client, err := connectMongo(ctx)
+  client, err := getMongoClient(ctx)
 	if err != nil {
 		log.Fatalf("failed to connect mongo: %v", err)
 	}
 	log.Println("Connected to mongo")
-	defer func() {
-		_ = client.Disconnect(context.Background())
-	}()
 
 	url := s.config.Dora.URL + "/api/v1/validators?limit=1000"
 	payload, err := fetchJSON(ctx, url)
@@ -87,7 +84,7 @@ func (s *ValidatorsService) Start() {
 			if err != nil {
 				log.Fatalf("failed to update validator: %v", err)
 			}
-			log.Printf("updated validator: %v", v["index"])
+			// log.Printf("updated validator: %v", v["index"])
 			arrCount[1]++
 		} else if errFind != mongo.ErrNoDocuments {
 			log.Printf("failed to find validator: %v", errFind)
@@ -106,11 +103,11 @@ func (s *ValidatorsService) Start() {
 				ValidatorLivenessMax:  toInt(v["validator_liveness_max"]),
 			}
 
-			insertedID, err := saveDocument(ctx, coll, validator)
+			_, err := saveDocument(ctx, coll, validator)
 			if err != nil {
 				log.Fatalf("failed to save document: %v", err)
 			}
-			log.Printf("saved document with _id=%v to %s.%s", insertedID, s.config.Mongo.DBName, s.collName)
+			// log.Printf("saved document with _id=%v to %s.%s", insertedID, s.config.Mongo.DBName, s.collName)
 			arrCount[2]++
 		}
 	}
