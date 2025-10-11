@@ -54,6 +54,8 @@ func (s *ValidatorsService) Start() {
 	arrCount := []int{0,0,0}
 	arrCount[0] = len(rawValidators)
 
+	currEpoch := getCurrentEpoch(ctx, s.config.Dora.URL)
+
 	for _, item := range rawValidators {
 		v, ok := item.(map[string]any)
 		if !ok {
@@ -61,7 +63,7 @@ func (s *ValidatorsService) Start() {
 		}
 
 		publicKey := toString(v["public_key"])
-		filter := bson.M{"public_key": publicKey}
+		filter := bson.M{"public_key": publicKey, "epoch": currEpoch}
 
 		var existing model.Validator
 		errFind := coll.FindOne(ctx, filter).Decode(&existing)
@@ -101,6 +103,7 @@ func (s *ValidatorsService) Start() {
 				WithdrawalCredentials: toString(v["withdrawal_credentials"]),
 				ValidatorLiveness:     toInt(v["validator_liveness"]),
 				ValidatorLivenessMax:  toInt(v["validator_liveness_max"]),
+				Epoch:                 currEpoch,
 			}
 
 			_, err := saveDocument(ctx, coll, validator)
@@ -113,4 +116,15 @@ func (s *ValidatorsService) Start() {
 	}
 	log.Printf("\t\t\t FINISHED FETCHING VALIDATORS\n\n")
 	log.Printf("\t\tUpdated: %v\t, Inserted: %v\t, Total: %v", arrCount[1], arrCount[2], arrCount[0])
+}
+
+
+func getCurrentEpoch(ctx context.Context, baseUrl string) int {
+	url := baseUrl + "/api/v1/epochs?limit=1"
+ 	rest, err := fetchJSON(ctx, url)
+	if err != nil {
+		return -1
+	}
+
+	return toInt(rest["epoch"])
 }

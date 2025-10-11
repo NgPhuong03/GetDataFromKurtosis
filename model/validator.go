@@ -12,4 +12,5 @@ type Validator struct {
   WithdrawalCredentials string `json:"withdrawal_credentials" bson:"withdrawal_credentials"`
   ValidatorLiveness int `json:"validator_liveness" bson:"validator_liveness"`
   ValidatorLivenessMax int `json:"validator_liveness_max" bson:"validator_liveness_max"`
+  Epoch int `json:"epoch" bson:"epoch"`
 }
