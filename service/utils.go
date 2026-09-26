@@ -1,19 +1,15 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
-	"time"
-
-	"context"
 	"strconv"
+	"time"
 )
 
-// toString converts a JSON value to string safely.
-// Params: v is any JSON-decoded value (string, number, etc.).
-// Returns: string representation, or empty string if cannot convert.
-// Usage: s := toString(val["name"]).
 func toString(v any) string {
 	switch t := v.(type) {
 	case string:
@@ -27,16 +23,14 @@ func toString(v any) string {
 	default:
 		return ""
 	}
-	}
-	
-	// toInt converts a JSON value to int safely.
-	// Params: v is any JSON-decoded value (json.Number, float64, string numeric).
-	// Returns: int value, or 0 if cannot convert.
-	// Usage: n := toInt(val["index"]).
-	func toInt(v any) int {
+}
+
+func toInt(v any) int {
 	switch t := v.(type) {
 	case int:
 		return t
+	case int64:
+		return int(t)
 	case float64:
 		return int(t)
 	case json.Number:
@@ -58,53 +52,64 @@ func toString(v any) string {
 	default:
 		return 0
 	}
-	}
-
-// toBool converts a JSON value to bool safely.
-// Params: v is any JSON-decoded value (bool, string).
-// Returns: bool value, or false if cannot convert.
-// Usage: b := toBool(val["finalized"]).
-func toBool(v any) bool {
-	switch t := v.(type) {
-	case bool:
-		return t
-	default:
-		return false
-	}
 }
-	
-	
-	
 
-// fetchJSON performs an HTTP GET to the provided URL and decodes the response as JSON.
-// Params: ctx for timeout, url is the target endpoint.
-// Returns: a generic map[string]any representing the JSON payload.
-// Usage: payload, err := fetchJSON(ctx, targetURL)
+func toBool(v any) bool {
+	b, ok := v.(bool)
+	return ok && b
+}
+
 func fetchJSON(ctx context.Context, url string) (map[string]any, error) {
 	if url == "" {
-			return nil, errors.New("TARGET_URL is empty")
+		return nil, errors.New("url is empty")
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-			return nil, err
-	}
+	reqCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
 
-	httpClient := &http.Client{Timeout: 15 * time.Second}
-	resp, err := httpClient.Do(req)
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, url, nil)
 	if err != nil {
-			return nil, err
+		return nil, err
+	}
+	resp, err := (&http.Client{Timeout: 20 * time.Second}).Do(req)
+	if err != nil {
+		return nil, err
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-			return nil, errors.New("non-2xx status code from target API")
+		return nil, fmt.Errorf("GET %s: status %d", url, resp.StatusCode)
 	}
 
 	dec := json.NewDecoder(resp.Body)
-	dec.UseNumber() // preserve numbers as json.Number to avoid float64 rounding
+	dec.UseNumber()
 	var payload map[string]any
 	if err := dec.Decode(&payload); err != nil {
 		return nil, err
 	}
 	return payload, nil
+}
+
+func dataObject(payload map[string]any) (map[string]any, error) {
+	data, ok := payload["data"].(map[string]any)
+	if !ok {
+		return nil, errors.New("payload missing data object")
+	}
+	return data, nil
+}
+
+func requiredInt(m map[string]any, key string) (int, error) {
+	v, ok := m[key]
+	if !ok || v == nil {
+		return 0, fmt.Errorf("missing %s", key)
+	}
+	return toInt(v), nil
+}
+
+// currentEpochFromPayload reads Dora's /api/v1/epochs body.
+// The epoch is data.current_epoch. The top-level object has no epoch field.
+func currentEpochFromPayload(payload map[string]any) (int, error) {
+	data, err := dataObject(payload)
+	if err != nil {
+		return 0, err
+	}
+	return requiredInt(data, "current_epoch")
 }

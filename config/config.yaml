@@ -1,8 +1,22 @@
 mongo: 
-  mongoURI: "mongodb+srv://phuongngusee_db_user:acnKHO5w9cXtCzGq@blockchain.03qpidb.mongodb.net/"
-  dbName: "kurtosis"
+  mongoURI: "mongodb+srv://phuongngusee_db_user:acnKHO5w9cXtCzGq@blockchain.03qpidb.mongodb.net/?BLOCKCHAIN"
+  dbName: "kurtosis_desw"
 
 dora:
-  url: http://127.0.0.1:32778
+  url: http://127.0.0.1:32818
+
+# One process collects one weighting model.
+# baseline (run_network.sh DF), srsw, lsw, or desw.
+# Override without editing this file: MODEL, DORA_URL, TARGET_EPOCHS, SLOTS_PER_EPOCH, OUTPUT_DIR.
+model: ""
+
+# Mainnet preset used by ethereum-package. A full epoch has this many slots.
+slots_per_epoch: 32
+
+# Export and exit after this many contiguous full epochs, starting at epoch 0.
+# Use the same value for baseline, srsw, lsw, and desw. 200 matches the reproduction target.
+target_epochs: 200
+
+output_dir: output
 
 time_loop: 10
